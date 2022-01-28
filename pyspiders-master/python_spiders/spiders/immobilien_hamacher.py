@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# Author: Ahmed Hossam
 import scrapy
 
 from ..loaders import ListingLoader
@@ -9,11 +11,13 @@ from scrapy.loader import ItemLoader
 from ..items import ListingItem
 
 
-class Makler24Spider(scrapy.Spider):
-    name = 'makler24'
-    start_urls = ['https://www.makler24.com/immobilien-vermarktungsart/miete/']
-    country = 'germany'  # Fill in the Country's name
-    locale = 'de'
+class ImmobilienHamacherSpider(scrapy.Spider):
+    name = "immobilien_hamacher"
+    start_urls = ['https://www.immobilien-hamacher.de/angebote/immobilienangebote/',
+                  'https://www.immobilien-hamacher.de/angebote/immobilienangebote/page/2/#immobilien']
+    #allowed_domains = ["de"]
+    country = 'germany' # Fill in the Country's name
+    locale = 'de' # Fill in the Country's locale, look up the docs if unsure
     external_source = "{}_PySpider_{}_{}".format(
         name.capitalize(), country, locale)
     execution_type = 'testing'
@@ -25,20 +29,18 @@ class Makler24Spider(scrapy.Spider):
         for url in self.start_urls:
             yield scrapy.Request(url, callback=self.parse)
 
+    # 2. SCRAPING level 2
     def parse(self, response, **kwargs):
-        apartments_urls=response.css(".property-title a::attr(href)").getall()
+        apartments_urls= response.css('.my-2 a::attr(href)').getall()
 
-        for apartment_url in apartments_urls:
+        dup_list=list(dict.fromkeys(apartments_urls))
+        final_urls=list(set(dup_list))
+        for apartment_url in final_urls:
             yield scrapy.Request(url=apartment_url,callback=self.populate_item)
-
     # 3. SCRAPING level 3
     def populate_item(self, response):
-
-
         item_loader = ListingLoader(response=response)
 
-
-        # # Enforces rent between 0 and 40,000 please dont delete these lines
         description = ""
         room_count = None
         bathroom_count = None
@@ -62,30 +64,27 @@ class Makler24Spider(scrapy.Spider):
         rent = None
         thousand_separator = '.'
         scale_separator = ','
+        # # MetaData
 
-        title=response.css(".property-title::text").get()
-        description= response.xpath("/html/body/div[1]/div[4]/div[3]/div[2]/div/div[6]/div[2]/div[2]/p/text()").extract()
-        desc=""
-        for i in description:
-            desc+=i
-        description=desc
-        city= str(response.xpath("/html/body/div[1]/div[4]/div[3]/div[2]/div/div[1]/h2/text()").extract()[0]).split(',')[0].split(' ')[1]
-
-        currency = "EUR"
-        address=str(response.xpath("/html/body/div[1]/div[4]/div[3]/div[2]/div/div[1]/h2/text()").extract()[0]).split(',')[0]
-        longitude, latitude = extract_location_from_address(address)
-        zipcode,x,y=extract_location_from_coordinates(longitude,latitude)
-        if "wohnung" in description.lower():
-            property_type = "apartment"
-        elif "haus" in description.lower() or "Haushalt" in description.lower() or "kammer" in description.lower() or "parlament" in description.lower():
-            property_type = "house"
-        elif "zimmer" in description.lower() or "raum" in description.lower() or "platz" in description.lower() or "saal" in description.lower() or "stube" in description.lower() or "kammer" in description.lower():
-            property_type = "room"
-        elif "studio" in description.lower() or "atelier" in description.lower() or "werkstatt" in description.lower():
-            property_type = "studio"
-        else:
+        is_rent = str(response.css('.badge-secondary::text').get())
+        if "miete" not in is_rent.lower():
             return
-        square_meters= int(extract_number_only(str(response.xpath('/html/body/div[1]/div[4]/div[3]/div[2]/div/div[3]/div/ul/li[7]/div/div[2]/text()').extract()),thousand_separator,scale_separator))
+        title=str(response.css('h1::text').get())
+        try:
+            description=str(response.xpath('//div[@class="container pt-6"]/div[2]/div[1]/div[3]/div[1]/div[2]/div[1]/p[2]/text()').extract())
+        except:
+            description="None"
+        try:
+            un_city = str(response.css('.mb-0::text').get())
+            city = ''.join([i for i in un_city if not i.isdigit()])
+        except:
+            city="None"
+
+        address=str(response.css('.mb-0::text').get())
+        longitude,latitude=extract_location_from_address(address)
+        zipcode,x,y=extract_location_from_coordinates(longitude,latitude)
+        property_type='apartment'
+        square_meters=int(float(extract_number_only(str(response.css('span::text').getall()[5].split()[0]),'.',',')))
         if square_meters==0:
             square_meters=1
         room_count=1
@@ -123,39 +122,43 @@ class Makler24Spider(scrapy.Spider):
                 and ('lave-vaiselle' not in description.lower()) and ('lave vaiselle' not in description.lower()):
             dishwasher = False
 
-        # # available_date = response.css(".list-group-item:nth-child(4) .col-sm-7::text").get()
-        images=response.css('.rsThumbsArrowRight , img::attr(src)').getall()
-        rent = response.css('.list-group-item:nth-child(2) .col-sm-7::text').get()
-        rent = int(extract_number_only(rent, '.', ','))
+        images=response.css('.immo-expose__head--image').getall()
+        try:
+            rent=int(float(response.css('span::text').getall()[2].split()[0]))
+        except:
+            rent=1
         if rent <= 0 and rent > 40000:
             return
+        currency="EUR"
 
-        landlord_number = '0 49 41 - 97 57 - 0'
-        landlord_email = 'info@makler24.com'
-        landlord_name = 'Harms & Harms'
-        # # # MetaData
+        energy_label=response.xpath('/html/body/div[3]/div/div[2]/div[1]/div[5]/div/div[2]/div[2]/div/div[3]/ul/li[6]/span[2]/text()').get()
+        # landlord_name = ""
+        landlord_number = '02204 - 76 755 - 0'
+        # landlord_email = ""
+
+
         item_loader.add_value("external_link", response.url) # String
         item_loader.add_value("external_source", self.external_source) # String
-        #
-        # #item_loader.add_value("external_id", external_id) # String
+
+        #item_loader.add_value("external_id", external_id) # String
         item_loader.add_value("position", self.position) # Int
         item_loader.add_value("title", title) # String
         item_loader.add_value("description", description) # String
-        # #
-        # # # # Property Details
+        #
+        # # # Property Details
         item_loader.add_value("city", city) # String
         item_loader.add_value("zipcode", zipcode) # String
         item_loader.add_value("address", address) # String
         item_loader.add_value("latitude", latitude) # String
         item_loader.add_value("longitude", longitude) # String
-        # # item_loader.add_value("floor", floor) # String
+        # #item_loader.add_value("floor", floor) # String
         item_loader.add_value("property_type", property_type) # String => ["apartment", "house", "room", "student_apartment", "studio"]
         item_loader.add_value("square_meters", square_meters) # Int
         item_loader.add_value("room_count", room_count) # Int
         item_loader.add_value("bathroom_count", bathroom_count) # Int
-        # #
-        # # item_loader.add_value("available_date", available_date) # String => date_format
-        # #
+        #
+        # #item_loader.add_value("available_date", available_date) # String => date_format
+        #
         item_loader.add_value("pets_allowed", pets_allowed) # Boolean
         item_loader.add_value("furnished", furnished) # Boolean
         item_loader.add_value("parking", parking) # Boolean
@@ -165,28 +168,29 @@ class Makler24Spider(scrapy.Spider):
         item_loader.add_value("swimming_pool", swimming_pool) # Boolean
         item_loader.add_value("washing_machine", washing_machine) # Boolean
         item_loader.add_value("dishwasher", dishwasher) # Boolean
-        # #
-        # # # # Images
+        #
+        # # # Images
         item_loader.add_value("images", images) # Array
         item_loader.add_value("external_images_count", len(images)) # Int
-        # item_loader.add_value("floor_plan_images", images) # Array
-        # #
-        # # # # Monetary Status
+        # #item_loader.add_value("floor_plan_images", floor_plan_images) # Array
+        #
+        # # # Monetary Status
         item_loader.add_value("rent", rent) # Int
-        # # #item_loader.add_value("deposit", deposit) # Int
-        # # #item_loader.add_value("prepaid_rent", prepaid_rent) # Int
-        # # #item_loader.add_value("utilities", utilities) # Int
+        # item_loader.add_value("deposit", 1) # Int
+        # #item_loader.add_value("prepaid_rent", prepaid_rent) # Int
+        # #item_loader.add_value("utilities", utilities) # Int
         item_loader.add_value("currency", currency) # String
-        # #
-        # # #item_loader.add_value("water_cost", water_cost) # Int
-        # # #item_loader.add_value("heating_cost", heating_cost) # Int
-        # #
-        # # #item_loader.add_value("energy_label", energy_label) # String
-        # #
-        # # # # LandLord Details
-        item_loader.add_value("landlord_name", landlord_name) # String
+        #
+        # #item_loader.add_value("water_cost", water_cost) # Int
+        # #item_loader.add_value("heating_cost", heating_cost) # Int
+        #
+        item_loader.add_value("energy_label", energy_label) # String
+        #
+        # # # LandLord Details
+        #
+        # item_loader.add_value("landlord_name", landlord_name) # String
         item_loader.add_value("landlord_phone", landlord_number) # String
-        item_loader.add_value("landlord_email", landlord_email) # String
+        # item_loader.add_value("landlord_email", landlord_email) # String
 
         self.position += 1
         yield item_loader.load_item()
