@@ -33,7 +33,12 @@ class WarsawflatrentSpider(scrapy.Spider):
     def parse(self, response, **kwargs):
         apartments_urls=response.css('.category-rent a::attr(href)').getall()
 
-        for apartment_url in apartments_urls:
+        dup_list = list(dict.fromkeys(apartments_urls))
+
+        final_urls = list(set(dup_list))
+
+        for apartment_url in final_urls:
+            print("urls",apartment_url)
             yield scrapy.Request(url=apartment_url,callback=self.populate_item)
 
     # 3. SCRAPING level 3
@@ -68,14 +73,10 @@ class WarsawflatrentSpider(scrapy.Spider):
         # # # MetaData
         title = response.css('.entry-title::text').get()
 
-        descri = str(response.css('.entry-content span,p::text').getall())
-        text_clean = "".join([i for i in descri if i not in string.punctuation])
-        edit = str(text_clean)
-        un = ['span', 'title', 'class', 'chopin', 'strong', 'br', 'classtlidtranslation', 'translation',
-              'langenstrongspan', '2018']
-        edit1 = edit.split()
-        resultwords = [word for word in edit1 if word.lower() not in un]
-        description = ' '.join(resultwords)
+
+        descri = response.css('.entry-content span::text').getall()
+        description="".join(descri)
+        print("desci",description)
 
         try:
             city = response.css('.entry-title::text').get().split('–')[1]
@@ -94,10 +95,23 @@ class WarsawflatrentSpider(scrapy.Spider):
             square_meters = int(extract_number_only(str(response.css('.translation::text').getall()[1].split(":")[1].split('m')[0].strip(' ')), thousand_separator,scale_separator))
         except:
             square_meters=1
-        room_count = int(extract_number_only(str(response.xpath('//div[@class="flaechen"]/table/tbody/tr[3]/td[2]/text()').extract()),thousand_separator, scale_separator))
-        print('room count=',room_count)
-        if room_count == 0:
-            room_count = 1
+
+        try:
+
+            rooms_count = response.css('.entry-content span::text').getall()
+            rooms_counts="".join(rooms_count)
+            rooom=str(rooms_counts)
+            ind_room = rooom.index('room')
+            room_loc = str(rooom[ind_room -2:ind_room-1])
+            room_count=int(float(extract_number_only(room_loc,thousand_separator,scale_separator)))
+
+
+            if room_count == 0:
+                room_count = 1
+        except:
+            room_count=1
+        print('rooooms=', room_count)
+
         bathroom_count = int(extract_number_only(str(response.xpath('//div[@class="flaechen"]/table/tbody/tr[4]/td[2]/text()').extract()),thousand_separator, scale_separator))
         print('bathroom count=',bathroom_count)
         if bathroom_count == 0:
@@ -138,15 +152,21 @@ class WarsawflatrentSpider(scrapy.Spider):
         currency = "PLN"
         images = response.css(".size-medium ,.wp-post-image").getall()
 
-        rents = description
+        rents = str(response.css('.entry-content span,br::text').get()).split("rent")[1]
         numbers = []
-        for word in rents.split():
+        str1 = ""
+        for word in rents:
             if word.isdigit():
-                numbers.append(int(word))
-        rent = numbers[-1]
+                numbers.append(word)
+        for ele in numbers:
+            str1 += ele
+        rent = int(float(extract_number_only(str1, thousand_separator, scale_separator)))
+        print("rent=",rent)
+
 
         if rent <= 0 and rent > 40000:
             return
+
         landlord_name = "warsawflatrent."
         landlord_number = "+48 690 888 298"
         landlord_email = "office@warsawflatrent.com"
