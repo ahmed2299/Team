@@ -14,7 +14,14 @@ import string
 
 class WarsawflatrentSpider(scrapy.Spider):
     name = "warsawflatrent"
-    start_urls = ['https://warsawflatrent.com/?fbclid=IwAR2g3OE9PJXhb6voLSv-nxSjTODc0BQfgxz8ONk9t4l8d9CVzlDfWz-Hdgk']
+    start_urls = ['https://warsawflatrent.com/?fbclid=IwAR2g3OE9PJXhb6voLSv-nxSjTODc0BQfgxz8ONk9t4l8d9CVzlDfWz-Hdgk',
+                  'https://warsawflatrent.com/page/2/?fbclid=IwAR2g3OE9PJXhb6voLSv-nxSjTODc0BQfgxz8ONk9t4l8d9CVzlDfWz-Hdgk',
+                  'https://warsawflatrent.com/page/3/?fbclid=IwAR2g3OE9PJXhb6voLSv-nxSjTODc0BQfgxz8ONk9t4l8d9CVzlDfWz-Hdgk',
+                  'https://warsawflatrent.com/page/4/?fbclid=IwAR2g3OE9PJXhb6voLSv-nxSjTODc0BQfgxz8ONk9t4l8d9CVzlDfWz-Hdgk',
+                  'https://warsawflatrent.com/page/5/?fbclid=IwAR2g3OE9PJXhb6voLSv-nxSjTODc0BQfgxz8ONk9t4l8d9CVzlDfWz-Hdgk',
+                  'https://warsawflatrent.com/page/6/?fbclid=IwAR2g3OE9PJXhb6voLSv-nxSjTODc0BQfgxz8ONk9t4l8d9CVzlDfWz-Hdgk',
+                  'https://warsawflatrent.com/page/7/?fbclid=IwAR2g3OE9PJXhb6voLSv-nxSjTODc0BQfgxz8ONk9t4l8d9CVzlDfWz-Hdgk',
+                  'https://warsawflatrent.com/page/8/?fbclid=IwAR2g3OE9PJXhb6voLSv-nxSjTODc0BQfgxz8ONk9t4l8d9CVzlDfWz-Hdgk']
     #allowed_domains = ["de"]
     country = 'poland' # Fill in the Country's name
     locale = 'pl' # Fill in the Country's locale, look up the docs if unsure
@@ -150,7 +157,9 @@ class WarsawflatrentSpider(scrapy.Spider):
                 and ('lave-vaiselle' not in description.lower()) and ('lave vaiselle' not in description.lower()):
             dishwasher = False
         currency = "PLN"
-        images = response.css(".size-medium ,.wp-post-image").getall()
+
+        image = response.css(".size-medium ,.wp-post-image").getall()
+
 
         try:
             rents = str(response.css('.entry-content span,br::text').get()).split("rent")[1]
