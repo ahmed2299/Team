@@ -220,7 +220,7 @@ class HansenBlumSpider(scrapy.Spider):
         # # # # # Monetary Status
         item_loader.add_value("rent", rent) # Int
         # # #
-        # item_loader.add_value("deposit", deposit) # Int
+        # item_loader.add_value("deposit", deposit) # Integer
         # # # #item_loader.add_value("prepaid_rent", prepaid_rent) # Int
         item_loader.add_value("utilities", utilities) # Int
         item_loader.add_value("currency", currency) # String
