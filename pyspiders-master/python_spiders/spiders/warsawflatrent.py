@@ -152,16 +152,19 @@ class WarsawflatrentSpider(scrapy.Spider):
         currency = "PLN"
         images = response.css(".size-medium ,.wp-post-image").getall()
 
-        rents = str(response.css('.entry-content span,br::text').get()).split("rent")[1]
-        numbers = []
-        str1 = ""
-        for word in rents:
-            if word.isdigit():
-                numbers.append(word)
-        for ele in numbers:
-            str1 += ele
-        rent = int(float(extract_number_only(str1, thousand_separator, scale_separator)))
-        print("rent=",rent)
+        try:
+            rents = str(response.css('.entry-content span,br::text').get()).split("rent")[1]
+            numbers = []
+            str1 = ""
+            for word in rents:
+                if word.isdigit():
+                    numbers.append(word)
+            for ele in numbers:
+                str1 += ele
+            rent = int(float(extract_number_only(str1, thousand_separator, scale_separator)))
+            print("rent=",rent)
+        except:
+            rent=1
 
 
         if rent <= 0 and rent > 40000:
