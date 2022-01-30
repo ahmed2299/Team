@@ -158,7 +158,8 @@ class WarsawflatrentSpider(scrapy.Spider):
             dishwasher = False
         currency = "PLN"
 
-        image = response.css(".size-medium ,.wp-post-image").getall()
+        images = response.css(".size-medium ,.wp-post-image img::attr(src)").getall()
+        print("images:",images)
 
 
         try:
@@ -171,13 +172,16 @@ class WarsawflatrentSpider(scrapy.Spider):
             for ele in numbers:
                 str1 += ele
             rent = int(float(extract_number_only(str1, thousand_separator, scale_separator)))
-            print("rent=",rent)
+
+            if rent <= 0 and rent > 40000:
+                return
+
         except:
             rent=1
 
+            print("rent=", rent)
 
-        if rent <= 0 and rent > 40000:
-            return
+
 
         landlord_name = "warsawflatrent."
         landlord_number = "+48 690 888 298"
