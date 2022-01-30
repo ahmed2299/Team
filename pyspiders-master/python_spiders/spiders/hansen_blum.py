@@ -156,12 +156,12 @@ class HansenBlumSpider(scrapy.Spider):
         if rent <= 0 and rent > 40000:
             return
         print("rent",rent)
-        try:
-            deposit=int(float(extract_number_only(response.xpath('/html/body/div[3]/div[2]/div/div[1]/div[7]/div[3]/div/div[5]/div[2]/text()').extract(), thousand_separator, scale_separator)))
-            if deposit==[]:
-                deposit=0
-        except:
-            deposit=0
+        # try:
+        #     deposit=int(float(extract_number_only(response.xpath('/html/body/div[3]/div[2]/div/div[1]/div[7]/div[3]/div/div[5]/div[2]/text()').extract(), thousand_separator, scale_separator)))
+        #     if deposit==[]:
+        #         deposit=0
+        # except:
+        #     deposit=0
         print("deposit:",deposit)
         utilities=int(float(extract_number_only(response.xpath('/html/body/div[3]/div[2]/div/div[1]/div[7]/div[3]/div/div[4]/div[2]/text()').extract(),thousand_separator,scale_separator)))
         currency = "EUR"
@@ -220,7 +220,7 @@ class HansenBlumSpider(scrapy.Spider):
         # # # # # Monetary Status
         item_loader.add_value("rent", rent) # Int
         # # #
-        item_loader.add_value("deposit", deposit) # Int
+        # item_loader.add_value("deposit", deposit) # Integer
         # # # #item_loader.add_value("prepaid_rent", prepaid_rent) # Int
         item_loader.add_value("utilities", utilities) # Int
         item_loader.add_value("currency", currency) # String
