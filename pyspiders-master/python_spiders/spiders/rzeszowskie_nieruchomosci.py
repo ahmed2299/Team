@@ -8,12 +8,10 @@ from ..items import ListingItem
 
 from ..helper import *
 import re
-import string
 
 class RzeszowskieNieruchomosciSpider(scrapy.Spider):
     name = "rzeszowskie_nieruchomosci"
-    start_urls = ['https://rzeszowskie-nieruchomosci.pl/wyszukiwarka/&typ=domy&rodzaj=wynajem',
-                  'https://rzeszowskie-nieruchomosci.pl/wyszukiwarka/&typ=mieszkania&rodzaj=wynajem']
+    start_urls = ['https://rzeszowskie-nieruchomosci.pl/']
     # allowed_domains = ["en"]
     country = 'poland' # Fill in the Country's name
     locale = 'pl' # Fill in the Country's locale, look up the docs if unsure
@@ -31,10 +29,9 @@ class RzeszowskieNieruchomosciSpider(scrapy.Spider):
     # 2. SCRAPING level 2
     def parse(self, response, **kwargs):
         url = 'https://rzeszowskie-nieruchomosci.pl'
-        apartments_urls = response.css('.offer__link::attr(href)').getall()
+        apartments_urls = response.css('.offers a::attr(href)').getall()
         try:
             for apartment_url in apartments_urls:
-                print("apartment_url:",apartment_url)
                 yield scrapy.Request(url='https://rzeszowskie-nieruchomosci.pl/' + apartment_url, callback=self.populate_item)
         except:
             pass
@@ -52,14 +49,12 @@ class RzeszowskieNieruchomosciSpider(scrapy.Spider):
         #     return
 
         title = response.xpath("/html/body/main/section[2]/div/div[1]/h2/text()").get()
-        print("title",title)
         description = response.xpath("/html/body/main/section[3]/div/div/p/text()").get().strip('\r\n')[20:]
         description += response.xpath("/html/body/main/section[3]/div/div/p/text()").getall()[2].strip('\n')
         desc = response.xpath("/html/body/main/section[3]/div/div/p/text()").getall()[4:24]
         for i in desc:
             description += i.strip('\n')
         description = description_cleaner(description)
-        print("descri", description)
         # ###################################
         # # # Property Details
         # props = response.xpath("/html/body/main/section[3]/div/div/ul[2]/li/span/text()").getall()
@@ -71,18 +66,11 @@ class RzeszowskieNieruchomosciSpider(scrapy.Spider):
         #     if 'Balkon' in props[i]:
         #         balcony = props[i + 1]
         #
-        # city = response.xpath('//div[@class="fieldLine detail_region"]/div/span[2]/text()').get()
-        city=response.css(".description__place::text").get().split()[0]
-        print("city:",city)
-        address1 = response.css(".description__place::text").get().split()  # String
-        address = " ".join(address1).replace(",", "")
-        print("address:", address)
+        city = response.xpath('//div[@class="fieldLine detail_region"]/div/span[2]/text()').get()
+        address = response.xpath("/html/body/main/section[3]/div/div/ul[1]/li[2]/span[2]/text()").get()  # String
         longitude, latitude = extract_location_from_address(address)
-        print("lon",longitude)
-        print("lat",latitude)
         zipcode,x,y=extract_location_from_coordinates(longitude,latitude)
-        print("zipcode",zipcode)
-        property_type = response.css(".description__info::text").get()
+        property_type = 'apartment'
         room = response.xpath("/html/body/main/section[3]/div/div/ul[2]/li[1]/span[1]/text()").get()
         room2 = response.xpath("/html/body/main/section[2]/div/div[1]/p/span[1]/text()").get()
         room_count = None
@@ -90,12 +78,10 @@ class RzeszowskieNieruchomosciSpider(scrapy.Spider):
             room_count = int(response.xpath("/html/body/main/section[3]/div/div/ul[2]/li[1]/span[2]/text()").get())
         if room_count is None and 'pokoje' in room2:
             room_count = extract_number_only(response.xpath("/html/body/main/section[2]/div/div[1]/p/span[1]/text()").get())
-        print("room_count:",room_count)
         bathroom_count = 1
-        square_meters = int(float(extract_number_only(str(response.xpath("/html/body/main/section[3]/div/div/ul[1]/li[4]/span[2]/text()").get())))) # Int
+        square_meters = extract_number_only(response.xpath("/html/body/main/section[3]/div/div/ul[1]/li[4]/span[2]/text()").get())  # Int
         if square_meters==0:
             square_meters=1
-        print("square_meters",square_meters)
         # ###################################
         balcony=True
         parking = True
@@ -141,22 +127,19 @@ class RzeszowskieNieruchomosciSpider(scrapy.Spider):
         # ############################################
         # # # Images
         images = response.xpath("/html/body/main/section[2]/div/div[2]/ul[1]/li/a/picture/img/@src").getall()
-
         url1 = "https://rzeszowskie-nieruchomosci.pl"
         for i in range(0, len(images)):
             images[i] = url1 + images[i]
-        print("image :", images)
         # ############################################
         # # # Monetary Status
-        rent = int(float(extract_number_only(response.xpath('/html/body/main/section[2]/div/div[1]/span[3]/b/text()').get().replace(" ",""))))
-        print("rent:",rent)
+        rent = int(float(extract_number_only(response.xpath('/html/body/main/section[2]/div/div[1]/span[3]/b/text()').get().strip(' '))))
+        # rate = currencyExchangeRates('pln', 'eur')
+        # rent = rate * rent
         currency = "PLN"
         # ######################################
         # # # LandLord Details
         landlord_number = response.xpath("/html/body/main/section[3]/div/aside/div/a[1]/b/text()").get()
         landlord_name = response.xpath("/html/body/main/section[3]/div/aside/div/span/text()").get()
-        landlord_email= response.css(".aside__email span::text").get()
-        external_id=response.xpath("/html/body/main/section[3]/div/div/ul[1]/li[1]/span[2]/text()").get()
 
         if rent <= 0 and rent > 40000:
             return
@@ -165,7 +148,7 @@ class RzeszowskieNieruchomosciSpider(scrapy.Spider):
         item_loader.add_value("external_link", response.url)  # String
         item_loader.add_value("external_source", self.external_source)  # String
 
-        item_loader.add_value("external_id", external_id) # String
+        # item_loader.add_value("external_id", external_id) # String
         item_loader.add_value("position", self.position)  # Int
         item_loader.add_value("title", title) # String
         item_loader.add_value("description", description) # String
@@ -214,7 +197,7 @@ class RzeszowskieNieruchomosciSpider(scrapy.Spider):
         # # LandLord Details
         item_loader.add_value("landlord_name", landlord_name) # String
         item_loader.add_value("landlord_phone", landlord_number) # String
-        item_loader.add_value("landlord_email", landlord_email) # String
+        # item_loader.add_value("landlord_email", landlord_email) # String
 
         self.position += 1
         yield item_loader.load_item()

@@ -13,8 +13,7 @@ from ..items import ListingItem
 
 class DrLehnerImmobilienSpider(scrapy.Spider):
     name = "dr_lehner_immobilien"
-    start_urls = ['https://www.dr-lehner-immobilien.de/immobilienangebote/?objektart=haus&vermarktungsart=miete&city=&radius=',
-                  'https://www.dr-lehner-immobilien.de/immobilienangebote/?objektart=wohnung&vermarktungsart=miete&city=&radius=']
+    start_urls = ['https://www.dr-lehner-immobilien.de/immobilienangebote/?objektart=&vermarktungsart=miete&plz=&ort=']
     #allowed_domains = ["de"]
     country = 'germany' # Fill in the Country's name
     locale = 'de' # Fill in the Country's locale, look up the docs if unsure
@@ -34,7 +33,6 @@ class DrLehnerImmobilienSpider(scrapy.Spider):
         apartments_urls=response.css('.top-immobilien a::attr(href)').getall()
 
         for apartment_url in apartments_urls:
-            print("apartment_url:",apartment_url)
             yield scrapy.Request(url=apartment_url,callback=self.populate_item)
 
 
@@ -67,40 +65,29 @@ class DrLehnerImmobilienSpider(scrapy.Spider):
         scale_separator = ','
         # # MetaData
         title=str(response.css('.contentbox h1::text').get())
-        print("title:",title)
         description=str(response.css('.objektbeschreibung p::text').get())
-        print("descri",description)
         try:
             city=str(response.xpath('/html/body/main/div/div[2]/div/section[2]/p[1]/strong/text()').extract()[0].split('/')[1].strip(' '))
         except:
             city="None"
 
-        print("city=",city)
-
         address=str(response.xpath('/html/body/main/div/div[2]/div/section[2]/p[1]/strong/text()').extract()[0])
-        print("address",address)
         longitude,latitude=extract_location_from_address(address)
-        print("lon",longitude)
-        print("lat",latitude)
         zipcode,x,y=extract_location_from_coordinates(longitude,latitude)
-        print("zipcode:",zipcode)
         if "wohnung" in description.lower():
             property_type = "apartment"
         else :
             property_type = "house"
 
-        square_meters=int(extract_number_only(str(response.xpath('/html/body/main/div/div[2]/div/section[3]/div/div[1]/div/table/tbody/tr[1]/td[2]/text()').extract()),thousand_separator,scale_separator))
+        square_meters=int(extract_number_only(str(response.xpath('//div[@class="flaechen"]/table/tbody/tr[2]/td[2]/text()').extract()),thousand_separator,scale_separator))
         if square_meters == 0:
             square_meters = 1
-        print("square_meters:",square_meters)
         room_count=int(extract_number_only(str(response.xpath('//div[@class="flaechen"]/table/tbody/tr[3]/td[2]/text()').extract()),thousand_separator,scale_separator))
         if room_count==0:
             room_count=1
-        print("room_count",room_count)
         bathroom_count=int(extract_number_only(str(response.xpath('//div[@class="flaechen"]/table/tbody/tr[4]/td[2]/text()').extract()),thousand_separator,scale_separator))
         if bathroom_count==0:
             bathroom_count=1
-        print("bath",bathroom_count)
         if ("pet" not in description.lower()) and ("haustiere" not in description.lower()):
             pets_allowed = False
         if ('MÖBLIERTES'.lower() not in description.lower()) and ('furnish' not in description.lower()):
@@ -135,11 +122,9 @@ class DrLehnerImmobilienSpider(scrapy.Spider):
             dishwasher = False
 
         images=response.css('.bilder-slider img::attr(src)').getall()
-        print("images",images)
         rent=int(float(extract_number_only(str(response.xpath('/html/body/main/div/div[2]/div/section[3]/div/div[2]/div/table/tbody/tr/td[2]/text()').extract()[0]))))
         if rent <= 0 and rent > 40000:
             return
-        print("rent",rent)
         currency="EUR"
 
 
@@ -190,7 +175,7 @@ class DrLehnerImmobilienSpider(scrapy.Spider):
 
         # # Monetary Status
         item_loader.add_value("rent", rent) # Int
-        # item_loader.add_value("deposit", deposit) # Int
+        item_loader.add_value("deposit", 1) # Int
         #item_loader.add_value("prepaid_rent", prepaid_rent) # Int
         #item_loader.add_value("utilities", utilities) # Int
         item_loader.add_value("currency", currency) # String

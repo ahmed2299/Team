@@ -12,8 +12,7 @@ from ..items import ListingItem
 
 class HansenBlumSpider(scrapy.Spider):
     name = "hansen_blum"
-    start_urls = ['https://anbieter.ivd24immobilien.de/hansen-blum-immobilien-gmbh/immobilien/wohnung-miete',
-                  'https://anbieter.ivd24immobilien.de/hansen-blum-immobilien-gmbh/immobilien/haus-miete']
+    start_urls = ['https://anbieter.ivd24immobilien.de/hansen-blum-immobilien-gmbh']
     # allowed_domains = ["hansen-blum-immobilien.de"]
     country = 'germany' # Fill in the Country's name
     locale = 'de' # Fill in the Country's locale, look up the docs if unsure
@@ -34,10 +33,8 @@ class HansenBlumSpider(scrapy.Spider):
 
         for apartment_url in apartments_urls:
             yield scrapy.Request(url="https://anbieter.ivd24immobilien.de/"+apartment_url,callback=self.populate_item)
-            print("apartment_url=",apartment_url)
         try:
             next_page = response.css('.active~ .page-item+ .page-item .page-link::attr(href)').get()
-            print("next_page=",next_page)
             yield scrapy.Request(url=next_page, callback=self.parse)
         except:
             pass
@@ -73,19 +70,13 @@ class HansenBlumSpider(scrapy.Spider):
         scale_separator = ','
 
         title = str(response.css(".col-md-12 h1::text").get())
-        print("title:",title)
         if(response.css(".col-md-12 p::text").get()>='0'and response.css(".col-md-12 p::text").get()<='z'):
             description=response.css(".col-md-12 p::text").get()
         else:
             description="None"
-        print("descri:",description)
         address=response.css(".col-11 span::text").get()
-        print("address",address)
         longitude, latitude = extract_location_from_address(address)
-        print("lon",longitude)
-        print("lat",latitude)
         zipcode, x, y = extract_location_from_coordinates(longitude, latitude)
-        print("zipcode:",zipcode)
         if "wohnung" in description.lower():
             property_type = "apartment"
         elif "haus" in description.lower() or "Haushalt" in description.lower() or "kammer" in description.lower() or "parlament" in description.lower():
@@ -97,26 +88,22 @@ class HansenBlumSpider(scrapy.Spider):
         else:
             return
         city=response.css(".expose-breadcrumb a::text").getall()[1]
-        print("city:",city)
 
         square_meters = int(float(extract_number_only(response.css(".col-5 h3::text").get(),thousand_separator,scale_separator)))
         if square_meters==0:
             square_meters=1
-        print("square_meters",square_meters)
         try:
-            room_count=extract_number_only(response.xpath('/html/body/div[3]/div[2]/div/div[1]/div[7]/div[1]/div/div[6]/div[2]/div/text()').extract()[0],thousand_separator,scale_separator)
+            room_count=extract_number_only(response.xpath('/html/body/div[3]/div[2]/div/div[1]/div[7]/div[1]/div/div[8]/div[2]/div/text()').extract()[0],thousand_separator,scale_separator)
             if room_count[0].strip(' ')>='A' and room_count[0].strip(' ')<='z':
                 room_count=1
             else:
                 room_count=int(float(room_count))
         except:
             room_count=1
-        print("room_count:",room_count)
 
         bathroom_count=response.xpath('/html/body/div[3]/div[2]/div/div[1]/div[7]/div[1]/div/div[9]/div[2]/div/text()').extract()
         if bathroom_count==0:
             bathroom_count=1
-        print("bathroom",bathroom_count)
         if ("pet" not in description.lower()) and ("haustiere" not in description.lower()):
             pets_allowed = False
         if ('MÖBLIERTES'.lower() not in description.lower()) and ('furnish' not in description.lower()):
@@ -151,21 +138,17 @@ class HansenBlumSpider(scrapy.Spider):
             dishwasher = False
 
         images=response.xpath("//div[@class='row']/div/div/div/div/div/a/img/@src").extract()
-        print("img",images)
         rent=float(extract_number_only(response.css('.short-info h3::text').get(), thousand_separator, scale_separator))
         if rent <= 0 and rent > 40000:
             return
-        print("rent",rent)
-        # try:
-        #     deposit=int(float(extract_number_only(response.xpath('/html/body/div[3]/div[2]/div/div[1]/div[7]/div[3]/div/div[5]/div[2]/text()').extract(), thousand_separator, scale_separator)))
-        #     if deposit==[]:
-        #         deposit=0
-        # except:
-        #     deposit=0
-        print("deposit:",deposit)
-        utilities=int(float(extract_number_only(response.xpath('/html/body/div[3]/div[2]/div/div[1]/div[7]/div[3]/div/div[4]/div[2]/text()').extract(),thousand_separator,scale_separator)))
+        try:
+            deposit=int(float(extract_number_only(response.xpath('/html/body/div[3]/div[2]/div/div[1]/div[7]/div[3]/div/div[5]/div[2]/text()').extract(), thousand_separator, scale_separator)))
+            if deposit==[]:
+                deposit=0
+        except:
+            deposit=0
+        utilities=int(float(extract_number_only(response.xpath('/html/body/div[3]/div[2]/div/div[1]/div[7]/div[3]/div/div[3]/div[2]/text()').extract(),thousand_separator,scale_separator)))
         currency = "EUR"
-        print("utilities:",utilities)
 
         landlord_number = '0681-876280'
         landlord_name = 'Ms. Filothea Kallenborn'
@@ -220,7 +203,7 @@ class HansenBlumSpider(scrapy.Spider):
         # # # # # Monetary Status
         item_loader.add_value("rent", rent) # Int
         # # #
-        # item_loader.add_value("deposit", deposit) # Integer
+        item_loader.add_value("deposit", deposit) # Int
         # # # #item_loader.add_value("prepaid_rent", prepaid_rent) # Int
         item_loader.add_value("utilities", utilities) # Int
         item_loader.add_value("currency", currency) # String

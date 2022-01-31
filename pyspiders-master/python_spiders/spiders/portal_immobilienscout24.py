@@ -61,7 +61,8 @@ class PortalImmobilienscout24Spider(scrapy.Spider):
         rent = None
         thousand_separator = '.'
         scale_separator = ','
-
+        external_id=extract_number_only(str(response.xpath('/html/body/div/section[2]/div[4]/div[2]/p[1]/text()').get()),thousand_separator,scale_separator)
+        # print('external id=',external_id)
         title=str(response.xpath('/html/body/div/section[2]/div[1]/div[1]/h4/text()').extract()[0])
         description=response.xpath('/html/body/div/section[2]/div[3]/div[6]/p/text()').extract()
         desc = ""
@@ -69,16 +70,18 @@ class PortalImmobilienscout24Spider(scrapy.Spider):
             desc += i
         description = desc
         address=response.xpath('/html/body/div/section[2]/div[1]/div[2]/p/text()').extract()[0]
-        print('address=',address)
+        # print('address=',address)
         city=response.xpath('/html/body/div/section[2]/div[1]/div[2]/p/text()').extract()[0].split(',')[1]
         city=re.findall(r'\w+', city)
         longitude, latitude = extract_location_from_address(address)
         zipcode=extract_number_only(str(response.xpath('/html/body/div/section[2]/div[1]/div[2]/p/text()')[0].extract().split(',')[1]),thousand_separator,scale_separator)
+        floor=extract_number_only(str(response.xpath('/html/body/div/section[2]/div[3]/div[4]/ul/li[2]/p[2]/text()').get()),thousand_separator,scale_separator)
+
         property_type="apartment"
         square_meters=int(float(extract_number_only(str(response.xpath('/html/body/div/section[2]/div[3]/div[3]/ul/li[2]/p[2]/text()').extract()),thousand_separator,scale_separator)))
-        room_count=int(float(extract_number_only(str(response.xpath('/html/body/div/section[2]/div[3]/div[4]/ul/li[3]/p[2]/text()').extract()),thousand_separator,scale_separator)))
-        if(room_count==0):
-            room_count=1
+        room_count=int(float(extract_number_only(str(response.xpath('/html/body/div/section[2]/div[3]/div[3]/ul/li[1]/p[2]/text()').extract()),thousand_separator,scale_separator)))
+
+        # print('room count=',room_count)
         bathroom_count=int(float(extract_number_only(str(response.xpath('/html/body/div/section[2]/div[3]/div[4]/ul/li[4]/p[2]/text()').extract()),thousand_separator,scale_separator)))
         if bathroom_count>5 or bathroom_count==0:
             bathroom_count=1
@@ -115,16 +118,15 @@ class PortalImmobilienscout24Spider(scrapy.Spider):
                 and ('lave-vaiselle' not in description.lower()) and ('lave vaiselle' not in description.lower()):
             dishwasher = False
         images=response.css('.gallery-container a::attr(href)').getall()
+        #/html/body/div/section[2]/div[3]/div[5]/ul/li[3]/p[2]
         rent=int(float(extract_number_only(str(response.xpath('/html/body/div/section[2]/div[3]/div[5]/ul/li[1]/p[2]/text()').extract()),thousand_separator,scale_separator)))
-        if rent <= 0 and rent > 40000:
-            return
-        try:
-            deposit=int(float(extract_number_only(str(response.xpath('/html/body/div/section[2]/div[3]/div[5]/ul/li[4]/p[2]/text()')),thousand_separator,scale_separator)))
-            if deposit == []:
-                deposit = 0
-        except:
-            deposit = 0
+        # print('rent=',rent)
+        # if rent <= 0 and rent > 40000:
+        #     return
+        deposit=2*rent
+        # print("deposit=",deposit)
         utilities=int(float(extract_number_only(str(response.xpath('/html/body/div/section[2]/div[3]/div[5]/ul/li[2]/p[2]/text()')),thousand_separator,scale_separator)))
+        # print('utilities=',utilities)
         currency = "EUR"
         landlord_number="0172 7979734"
         landlord_name = 'Mr. Langer'
@@ -133,7 +135,7 @@ class PortalImmobilienscout24Spider(scrapy.Spider):
         item_loader.add_value("external_link", response.url) # String
         item_loader.add_value("external_source", self.external_source) # String
 
-        #item_loader.add_value("external_id", external_id) # String
+        item_loader.add_value("external_id", external_id) # String
         item_loader.add_value("position", self.position) # Int
         item_loader.add_value("title", title) # String
         item_loader.add_value("description", description) # String
@@ -144,7 +146,7 @@ class PortalImmobilienscout24Spider(scrapy.Spider):
         item_loader.add_value("address", address) # String
         item_loader.add_value("latitude", latitude) # String
         item_loader.add_value("longitude", longitude) # String
-        # #item_loader.add_value("floor", floor) # String
+        item_loader.add_value("floor", floor) # String
         item_loader.add_value("property_type", property_type) # String => ["apartment", "house", "room", "student_apartment", "studio"]
         item_loader.add_value("square_meters", square_meters) # Int
         item_loader.add_value("room_count", room_count) # Int
@@ -162,7 +164,7 @@ class PortalImmobilienscout24Spider(scrapy.Spider):
         item_loader.add_value("washing_machine", washing_machine) # Boolean
         item_loader.add_value("dishwasher", dishwasher) # Boolean
         #
-        # # # Images
+        # # # # Images
         item_loader.add_value("images", images) # Array
         item_loader.add_value("external_images_count", len(images)) # Int
         # #item_loader.add_value("floor_plan_images", floor_plan_images) # Array

@@ -12,9 +12,12 @@ import re
 
 class MichaelsImmobilienSpider(scrapy.Spider):
     name = "michaels_immobilien"
-    start_urls = ['https://www.michaels-immobilien.de/wohnungen-miete.html?fbclid=IwAR2_7ap5bL_Ldwmtb0e2EMsaYy_DfPrhqoOd2bKdMOxd_lCBe8NEg8Df3JE',
-                  'https://www.michaels-immobilien.de/wohnungen-miete.html?&kategoriefilter=miete-wohnungen&sort=sorting&perPage=3&page=2',
-                  'https://www.michaels-immobilien.de/wohnungen-miete.html?&kategoriefilter=miete-wohnungen&sort=sorting&perPage=3&page=3']
+
+    # start_urls = ['https://www.michaels-immobilien.de/wohnungen-miete.html?fbclid=IwAR2_7ap5bL_Ldwmtb0e2EMsaYy_DfPrhqoOd2bKdMOxd_lCBe8NEg8Df3JE',
+    #               'https://www.michaels-immobilien.de/wohnungen-miete.html?&kategoriefilter=miete-wohnungen&sort=sorting&perPage=3&page=2',
+    #               'https://www.michaels-immobilien.de/wohnungen-miete.html?&kategoriefilter=miete-wohnungen&sort=sorting&perPage=3&page=3']
+    start_urls=['https://www.michaels-immobilien.de/wohnungen-miete.html?fbclid=IwAR2_7ap5bL_Ldwmtb0e2EMsaYy_DfPrhqoOd2bKdMOxd_lCBe8NEg8Df3JE',
+                'https://www.michaels-immobilien.de/wohnungen-miete.html?&kategoriefilter=miete-wohnungen&sort=sorting&perPage=3&page=2']
     allowed_domains = ["de"]
     country = 'germany'  # Fill in the Country's name
     locale = 'de'  # Fill in the Country's locale, look up the docs if unsure
@@ -47,8 +50,9 @@ class MichaelsImmobilienSpider(scrapy.Spider):
 
         # manipulation of span list
         # # MetaData
+        #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[2]/div/div[2]
+        external_id=response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[2]/div/div[2]/text()').get()
         title = response.css('h1::text').get()
-        # external_id = response.xpath('//div[@class="object_base"]/div/div[2]/text()').get()
         description = response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[9]/div[2]/p/text()').get()
         #
         # ###################################
@@ -147,16 +151,40 @@ class MichaelsImmobilienSpider(scrapy.Spider):
             images[i] = url1 + images[i]
         # ############################################
         # # # Monetary Status
+        #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[19]/div[2]
+        #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[13]/div[2]
+        #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[16]/div[2]
         rent = int(float(extract_number_only(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[19]/div[2]/text()').get(),'.',',')))
         if rent==0:
-            rent=1
+            rent=int(float(extract_number_only(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[13]/div[2]/text()').get(),'.',',')))
         deposit = int(float(extract_number_only(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[22]/div[2]/text()').get(),'.',',')))
+        if deposit==0:
+            deposit=int(float(extract_number_only(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[20]/div[2]/text()').get(),'.',',')))
+            if deposit==0:
+                deposit=int(float(extract_number_only(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[16]/div[2]/text()').get(),'.',',')))
+        #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[20]/div[2]
+        #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[14]/div[2]
         utilities = int(float(extract_number_only(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[20]/div[2]/text()').get(),'.',',')))
+        if utilities==0:
+            utilities = int(float(extract_number_only(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[14]/div[2]/text()').get(),'.',',')))
         currency = "EUR"
-        energy_label = response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[11]/div[2]/text()').get()  # String
+        #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[11]/div[2]
+        energy_label = str(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[11]/div[2]/text()').get())  # String
+        if energy_label=='Gas':
+            energy_label='None'
+        elif len(energy_label)>1:
+            #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[10]/div[2]
+            energy_label=str(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[10]/div[2]/text()').get())
         # ######################################
         # # # LandLord Details
-        landlord_number = '03435922562'
+        #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[24]/div[2]/a
+        #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[22]/div[2]/a
+        #/html/body/div[1]/div[2]/div/div/div/div/div/div/div[18]/div[2]/a
+        landlord_number = str(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[24]/div[2]/a/text()').get())
+        if landlord_number=='None':
+            landlord_number = str(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[22]/div[2]/a/text()').get())
+            if landlord_number=='None':
+                landlord_number = str(response.xpath('/html/body/div[1]/div[2]/div/div/div/div/div/div/div[18]/div[2]/a/text()').get())
         landlord_name = 'Frau Jennifer Scheffler'
         landlord_email = 'https://www.facebook.com/michaels.immobilien/'
         #
@@ -216,7 +244,7 @@ class MichaelsImmobilienSpider(scrapy.Spider):
         # # LandLord Details
         item_loader.add_value("landlord_name", landlord_name) # String
         item_loader.add_value("landlord_phone", landlord_number) # String
-        item_loader.add_value("landlord_email", landlord_email) # String
+        # item_loader.add_value("landlord_email", landlord_email) # String
 
         self.position += 1
         yield item_loader.load_item()
