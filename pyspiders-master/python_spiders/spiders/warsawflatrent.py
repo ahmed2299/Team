@@ -45,7 +45,6 @@ class WarsawflatrentSpider(scrapy.Spider):
         final_urls = list(set(dup_list))
 
         for apartment_url in final_urls:
-            print("urls",apartment_url)
             yield scrapy.Request(url=apartment_url,callback=self.populate_item)
 
     # 3. SCRAPING level 3
@@ -83,11 +82,11 @@ class WarsawflatrentSpider(scrapy.Spider):
 
         descri = response.css('.entry-content span::text').getall()
         description="".join(descri)
-        print("desci",description)
+
 
         try:
             city = response.css('.entry-title::text').get().split('–')[1]
-            # print("city ", city)
+
         except:
             city = "None"
         try:
@@ -103,24 +102,24 @@ class WarsawflatrentSpider(scrapy.Spider):
         except:
             square_meters=1
 
-        try:
+        # try:
 
-            rooms_count = response.css('.entry-content span::text').getall()
-            rooms_counts="".join(rooms_count)
-            rooom=str(rooms_counts)
-            ind_room = rooom.index('room')
-            room_loc = str(rooom[ind_room -2:ind_room-1])
-            room_count=int(float(extract_number_only(room_loc,thousand_separator,scale_separator)))
+        #     rooms_count = response.css('.entry-content span::text').getall()
+        #     rooms_counts="".join(rooms_count)
+        #     rooom=str(rooms_counts)
+        #     ind_room = rooom.index('room')
+        #     room_loc = str(rooom[ind_room -2:ind_room-1])
+        #     room_count=int(float(extract_number_only(room_loc,thousand_separator,scale_separator)))
+        #
+        #
+        #     if room_count == 0:
+        #         room_count = 1
+        # except:
+        #     room_count=1
 
-
-            if room_count == 0:
-                room_count = 1
-        except:
-            room_count=1
-        print('rooooms=', room_count)
 
         bathroom_count = int(extract_number_only(str(response.xpath('//div[@class="flaechen"]/table/tbody/tr[4]/td[2]/text()').extract()),thousand_separator, scale_separator))
-        print('bathroom count=',bathroom_count)
+
         if bathroom_count == 0:
             bathroom_count = 1
 
@@ -158,20 +157,33 @@ class WarsawflatrentSpider(scrapy.Spider):
             dishwasher = False
         currency = "PLN"
 
-        images = response.css(".size-medium ,.wp-post-image img::attr(src)").getall()
-        print("images:",images)
+        image = response.css(".size-medium ,.wp-post-image img::attr(src)").getall()
+        images=[]
+        for i in image:
+            x = str(i[i.index("src")+5:i.index("alt")-2])
+            images.append(x)
+
 
 
         try:
-            rents = str(response.css('.entry-content span,br::text').get()).split("rent")[1]
-            numbers = []
-            str1 = ""
-            for word in rents:
-                if word.isdigit():
-                    numbers.append(word)
-            for ele in numbers:
-                str1 += ele
-            rent = int(float(extract_number_only(str1, thousand_separator, scale_separator)))
+            # rents = str(response.css('.entry-content span,br::text').get()).split("rent")[1]
+            # numbers = []
+            # str1 = ""
+            # for word in rents:
+            #     if word.isdigit():
+            #         numbers.append(word)
+            # for ele in numbers:
+            #     str1 += ele
+            # rent = int(float(extract_number_only(str1, thousand_separator, scale_separator)))
+
+            rents = response.css("#main p:nth-child(1),.translation span:nth-child(5) span,strong::text").getall()
+            rents = " ".join(rents)
+            reent = rents.lower()
+            ind_rent = reent.index('rent')
+            ind_pln = reent.index('pln')
+            rent_loc = str(reent[ind_rent:ind_pln+10]).replace(",","")
+            rent = int(float(extract_number_only(rent_loc, thousand_separator, scale_separator)))
+
 
             if rent <= 0 and rent > 40000:
                 return
@@ -179,7 +191,7 @@ class WarsawflatrentSpider(scrapy.Spider):
         except:
             rent=1
 
-            print("rent=", rent)
+
 
 
 
@@ -203,7 +215,7 @@ class WarsawflatrentSpider(scrapy.Spider):
         # item_loader.add_value("floor", floor)  # String
         item_loader.add_value("property_type", property_type)  # String => ["apartment", "house", "room", "student_apartment", "studio"]
         item_loader.add_value("square_meters", square_meters)  # Int
-        item_loader.add_value("room_count", room_count)  # Int
+        # item_loader.add_value("room_count", room_count)  # Int
         item_loader.add_value("bathroom_count", bathroom_count)  # Int
         #
         # # item_loader.add_value("available_date", available_date) # String => date_format

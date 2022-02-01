@@ -53,13 +53,10 @@ class RzeszowskieNieruchomosciSpider(scrapy.Spider):
 
         title = response.xpath("/html/body/main/section[2]/div/div[1]/h2/text()").get()
         print("title",title)
-        description = response.xpath("/html/body/main/section[3]/div/div/p/text()").get().strip('\r\n')[20:]
-        description += response.xpath("/html/body/main/section[3]/div/div/p/text()").getall()[2].strip('\n')
-        desc = response.xpath("/html/body/main/section[3]/div/div/p/text()").getall()[4:24]
-        for i in desc:
-            description += i.strip('\n')
-        description = description_cleaner(description)
-        print("descri", description)
+        description1 = response.css(".text-box p::text").getall()
+        description="".join(description1)
+        print(description)
+
         # ###################################
         # # # Property Details
         # props = response.xpath("/html/body/main/section[3]/div/div/ul[2]/li/span/text()").getall()
